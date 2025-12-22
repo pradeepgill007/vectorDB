@@ -1,0 +1,17 @@
+[project]
+name = "vectordb"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "certifi>=2025.11.12",
+    "dotenv>=0.9.9",
+    "langchain-chroma>=1.1.0",
+    "langchain-classic>=1.0.0",
+    "langchain-core>=1.2.4",
+    "langchain-ollama>=1.0.1",
+    "langchain-openai>=1.1.6",
+    "langchain-pinecone>=0.2.13",
+    "langchain-tavily>=0.2.15"
+]
