@@ -24,16 +24,16 @@ load_dotenv()
     ) """
 embeddings = OllamaEmbeddings(model="nomic-embed-text")
 
-#vectorstore = Chroma(persist_directory='chroma_db', embedding_function=embedding)
-vectorStore = PineconeVectorStore(index_name='langchain-collection-768', embedding=embeddings)
+vectorstore = Chroma(persist_directory='chroma_db', embedding_function=embeddings)
+# vectorStore = PineconeVectorStore(index_name='langchain-collection-768', embedding=embeddings)
 
 tavilyExtract = TavilyExtract()
-tavilyMap = TavilyMap(max_depth=1,max_breadth=1,max_pages=1)
+tavily_map = TavilyMap(max_depth=5, max_breadth=20, max_pages=500)
 tavilyCrawl = TavilyCrawl()
 
 
-async def index_doc_async(documents: List[Document], batch_size:int = 50):
-    """Process documents in batches asynchronously."""
+""" async def index_doc_async(documents: List[Document], batch_size:int = 50):
+    Process documents in batches asynchronously.
     log_header("VECTOR STORAGE PHASE")
     log_info(f"📚 VectorStore Indexing: Preparing to add {len(documents)} documents to vector store", Colors.DARKCYAN)
     
@@ -43,8 +43,9 @@ async def index_doc_async(documents: List[Document], batch_size:int = 50):
 
     async def add_batch(batch: List[Document], batch_num: int):
         try:
-            await vectorStore.aadd_documents(batch)
-            log_success(f"VectorStore Indexing: Successfully added batch {batch_num}/{len(batches)} ({len(batch)} documents)")
+            async with semaphore:
+                await vectorStore.aadd_documents(batch)
+                log_success(f"VectorStore Indexing: Successfully added batch {batch_num}/{len(batches)} ({len(batch)} documents)")
         except Exception as e:
             log_error(f"VectorStore Indexing: Failed to add batch {batch_num} - {e}")
             return False
@@ -60,17 +61,39 @@ async def index_doc_async(documents: List[Document], batch_size:int = 50):
     else:
         log_warning(f"VectorStore Indexing: Processed {successful}/{len(batches)} batches successfully")
 
+ """
+
+
+SEM_LIMIT = 10  # Pinecone-safe: 1–3
+
+async def index_doc_async(documents: List[Document], batch_size: int = 50):
+    log_header("VECTOR STORAGE PHASE")
+
+    batches = [documents[i:i + batch_size] for i in range(0, len(documents), batch_size)]
+    semaphore = asyncio.Semaphore(SEM_LIMIT)
+
+    async def add_batch(batch: List[Document], batch_num: int):
+        async with semaphore:
+            try:
+                await vectorstore.aadd_documents(batch)
+                log_success(f"Batch {batch_num}/{len(batches)} indexed")
+                return True
+            except Exception as e:
+                log_error(f"Batch {batch_num} failed: {e}")
+                return False
+
+    results = []
+    for i, batch in enumerate(batches):
+        results.append(await add_batch(batch, i + 1))
+
+    log_success(f"Indexed {sum(results)}/{len(batches)} batches")
 
 
 async def main():
     log_header('Doc injection pipeline!')
     log_info('Web crawler started', Colors.PURPLE)
 
-    res = tavilyCrawl.invoke({
-        'url':'https://en.wikipedia.org/wiki/Narendra_Modi',
-        'max_depth':2,
-        'instructions':'content on Narendra Modi'
-    })
+    res = tavilyCrawl.invoke({'url':'https://en.wikipedia.org/wiki/Narendra_Modi'})
 
     all_docs = res['results']
     print("all_docs ==>", all_docs)
@@ -89,7 +112,7 @@ async def main():
 
     log_success(f'{len(splitted_doc)} chunks created')
 
-    await index_doc_async(splitted_doc, batch_size=20)
+    await index_doc_async(splitted_doc, batch_size=10)
 
 if __name__ == "__main__":
     asyncio.run(main())
