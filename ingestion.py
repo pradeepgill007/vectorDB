@@ -28,7 +28,8 @@ vectorstore = Chroma(persist_directory='chroma_db', embedding_function=embedding
 # vectorStore = PineconeVectorStore(index_name='langchain-collection-768', embedding=embeddings)
 
 tavilyExtract = TavilyExtract()
-tavily_map = TavilyMap(max_depth=5, max_breadth=20, max_pages=500)
+# tavily_map = TavilyMap(max_depth=5, max_breadth=20, max_pages=500)
+tavily_map = TavilyMap(max_depth=1, max_breadth=1)
 tavilyCrawl = TavilyCrawl()
 
 
@@ -89,7 +90,7 @@ async def index_doc_async(documents: List[Document], batch_size: int = 50):
     log_success(f"Indexed {sum(results)}/{len(batches)} batches")
 
 
-async def main():
+""" async def main():
     log_header('Doc injection pipeline!')
     log_info('Web crawler started', Colors.PURPLE)
 
@@ -113,6 +114,7 @@ async def main():
     log_success(f'{len(splitted_doc)} chunks created')
 
     await index_doc_async(splitted_doc, batch_size=10)
+ """
 
-if __name__ == "__main__":
-    asyncio.run(main())
+# if __name__ == "__main__":
+    # asyncio.run(main())
